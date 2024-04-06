@@ -1,5 +1,8 @@
 const page = document.getElementById("page");
 
+let playingObject = null;
+let PAUSED = false;
+
 let time = 0;
 const ROWS = 15;
 const COLUMNS = 15;
@@ -72,116 +75,151 @@ function createGrids() {
 }
 
 function renderNewObjects() {
+  const randomObjectId = Math.floor(Math.random() * 1010101010);
   const object = JSON.parse(
     JSON.stringify(OBJECT[Math.floor(Math.random() * OBJECT.length)])
   );
+  PLAYING_OBJECT_Id = randomObjectId;
   object.forEach((cell) => {
     cell[1] = cell[1] + START_COLUMN;
     const cellId = "cell-" + cell[0] + "-" + cell[1];
     const cellElement = document.getElementById(cellId);
     // console.log(START_COLUMN, "START_COLUMN", cellId, object);
+    cellElement.setAttribute("data-object-id", randomObjectId);
     cellElement.classList.add("object");
   });
   return object;
 }
 
-function dropPlayingObject(playingObject) {
-  let canMove = true;
-  const newPlayingObject = playingObject.map((cell) => [...cell]);
-  // Check if the object can move down
-  newPlayingObject.forEach((cell) => {
-    const newRow = newPlayingObject[newPlayingObject.length - 1][0] + 1;
-    if (
-      newRow >= TOTAL_AREA.rows ||
-      $("#cell-" + newRow + "-" + cell[1]).hasClass("object")
-    ) {
-      canMove = false;
-    }
-  });
+let PLAYING_OBJECT = null;
+let PLAYING_OBJECT_Id = null;
 
-  // If the object can move down, update its position
-  if (canMove) {
-    // Clear the current position of the newPlayingObject
+const MOVEMENT = {
+  dropPlayingObject: () => {
+    let canMove = true;
+    const newPlayingObject = PLAYING_OBJECT.map((cell) => [...cell]);
+    // Check if the object can move down
     newPlayingObject.forEach((cell) => {
+      const newRow = newPlayingObject[newPlayingObject.length - 1][0] + 1;
+      if (
+        newRow >= TOTAL_AREA.rows ||
+        $("#cell-" + newRow + "-" + cell[1]).hasClass("object")
+      ) {
+        canMove = false;
+      }
+    });
+
+    // If the object can move down, update its position
+    if (canMove) {
+      // Clear the current position of the newPlayingObject
+      newPlayingObject.forEach((cell) => {
+        const cellId = "cell-" + cell[0] + "-" + cell[1];
+        !PLAYING_OBJECT_Id &&
+          (PLAYING_OBJECT_Id = document
+            .getElementById(cellId)
+            .getAttribute("data-object-id"));
+        // document.getElementById(cellId).removeAttribute("data-object-id");
+        document.getElementById(cellId).classList.remove("object");
+      });
+
+      // Update the position of the newPlayingObject by incrementing the row index
+      newPlayingObject.forEach((cell) => {
+        ++cell[0];
+        const newCellId = "cell-" + cell[0] + "-" + cell[1];
+        document
+          .getElementById(newCellId)
+          .setAttribute("data-object-id", PLAYING_OBJECT_Id);
+        document.getElementById(newCellId).classList.add("object");
+      });
+      return { object: newPlayingObject };
+    } else {
+      return { recreate: true };
+    }
+  },
+  updatePlayingObject: (newPlayingObject) => {
+    PLAYING_OBJECT.forEach((cell) => {
       const cellId = "cell-" + cell[0] + "-" + cell[1];
       document.getElementById(cellId).classList.remove("object");
     });
 
-    // Update the position of the newPlayingObject by incrementing the row index
     newPlayingObject.forEach((cell) => {
-      ++cell[0];
-      const newCellId = "cell-" + cell[0] + "-" + cell[1];
-      document.getElementById(newCellId).classList.add("object");
+      const cellId = "cell-" + cell[0] + "-" + cell[1];
+      document.getElementById(cellId).classList.add("object");
     });
-    return { object: newPlayingObject };
-  } else {
-    return { recreate: true };
-  }
-}
+
+    PLAYING_OBJECT = newPlayingObject;
+  },
+  isValidPosition: (newPlayingObject) => {
+    return newPlayingObject.every((cell) => {
+      console.log(
+        document
+          .getElementById("cell-" + cell[0] + "-" + cell[1])
+          .getAttribute("data-object-id"),
+        "asdasd"
+      );
+      return (
+        // !$("#cell-" + cell[0] + "-" + cell[1]).getAttribute("data-object-id") &&
+        cell[0] >= 0 &&
+        cell[0] < TOTAL_AREA.rows &&
+        cell[1] >= 0 &&
+        cell[1] < TOTAL_AREA.columns
+      );
+    });
+  },
+  moveLeft: () => {
+    const newPlayingObject = PLAYING_OBJECT.map((cell) => [
+      cell[0],
+      cell[1] - 1,
+    ]);
+    if (MOVEMENT.isValidPosition(newPlayingObject)) {
+      MOVEMENT.updatePlayingObject(newPlayingObject);
+    }
+  },
+
+  moveRight: () => {
+    const newPlayingObject = PLAYING_OBJECT.map((cell) => [
+      cell[0],
+      cell[1] + 1,
+    ]);
+    if (MOVEMENT.isValidPosition(newPlayingObject)) {
+      MOVEMENT.updatePlayingObject(newPlayingObject);
+    }
+  },
+};
 
 function main() {
   //   createGrids(stagingRows, columns, true);
   createGrids();
-
   $(page).ready(function () {
-    let playingObject = null;
-
     setInterval(function () {
-      if (playingObject === null) {
-        playingObject = renderNewObjects();
-      } else {
-        let { object, recreate } = dropPlayingObject([...playingObject]);
-        if (recreate) {
-          playingObject = renderNewObjects();
+      if (!PAUSED) {
+        if (PLAYING_OBJECT === null) {
+          PLAYING_OBJECT = renderNewObjects();
         } else {
-          playingObject = object;
+          let { object, recreate } = MOVEMENT.dropPlayingObject();
+          if (recreate) {
+            PLAYING_OBJECT = renderNewObjects();
+          } else {
+            PLAYING_OBJECT = object;
+          }
         }
+
+        time++;
+        $("#timer").text(`Timer : ${time}`);
       }
-
-      time++;
-      $("#timer").text(`Timer : ${time}`);
-    }, TIMER_INTERVAL.medium);
-
-    function moveLeft() {
-      const newPlayingObject = playingObject.map((cell) => [
-        cell[0],
-        cell[1] - 1,
-      ]);
-      updatePlayingObject(newPlayingObject);
-    }
-
-    function moveRight() {
-      const newPlayingObject = playingObject.map((cell) => [
-        cell[0],
-        cell[1] + 1,
-      ]);
-      updatePlayingObject(newPlayingObject);
-    }
-
-    function updatePlayingObject(newPlayingObject) {
-      // Clear the current position of the playingObject
-      playingObject.forEach((cell) => {
-        const cellId = "cell-" + cell[0] + "-" + cell[1];
-        document.getElementById(cellId).classList.remove("object");
-      });
-
-      // Update the position of the playingObject
-      newPlayingObject.forEach((cell) => {
-        const cellId = "cell-" + cell[0] + "-" + cell[1];
-        document.getElementById(cellId).classList.add("object");
-      });
-
-      playingObject = newPlayingObject;
-    }
+    }, TIMER_INTERVAL.hard);
 
     document.addEventListener("keydown", function (event) {
-      if (playingObject !== null) {
+      if (PLAYING_OBJECT !== null) {
         switch (event.key) {
           case "ArrowLeft":
-            moveLeft();
+            MOVEMENT.moveLeft();
+            break;
+          case "p":
+            PAUSED = !PAUSED;
             break;
           case "ArrowRight":
-            moveRight();
+            MOVEMENT.moveRight();
             break;
           //   case "ArrowDown":
           // moveDown();

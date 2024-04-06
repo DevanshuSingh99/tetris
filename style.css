@@ -1,0 +1,29 @@
+body{
+    display:flex;
+    justify-content: center;
+    align-items: center;
+}
+.timer{
+    position: absolute;
+    left:50px;
+    top:50px;
+    font-size: 2rem;
+}
+.grid{
+    display: flex;
+    flex-direction: column;
+    gap:1px
+}
+.row{
+    display: flex;
+    flex-direction: row;
+    gap:1px
+}
+.cell{
+    border: 1px solid black;
+    width: 30px;
+    height: 30px;
+}
+.object{
+    background-color: red;
+}

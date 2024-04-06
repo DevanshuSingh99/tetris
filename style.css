@@ -25,5 +25,17 @@ body{
     height: 30px;
 }
 .object{
+    background-color:white;
+}
+.red{
     background-color: red;
 }
+ .green{
+    background-color: green;
+ }
+ .blue{
+    background-color: blue;
+ }
+ .brown{
+    background-color: brown;
+ }

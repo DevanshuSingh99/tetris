@@ -3,6 +3,8 @@ const page = document.getElementById("page");
 let playingObject = null;
 let PAUSED = false;
 
+let OCCUPIED_CELL = new Set();
+
 let time = 0;
 const ROWS = 15;
 const COLUMNS = 15;
@@ -18,6 +20,7 @@ const STAGING_GRID_AREA = {
   columns: COLUMNS,
 };
 
+const OBJECT_COLORS = ["red", "green", "blue", "brown"];
 const OBJECT = [
   [
     [0, 0],
@@ -76,6 +79,8 @@ function createGrids() {
 
 function renderNewObjects() {
   const randomObjectId = Math.floor(Math.random() * 1010101010);
+  const randomColor =
+    OBJECT_COLORS[Math.floor(Math.random() * OBJECT_COLORS.length)];
   const object = JSON.parse(
     JSON.stringify(OBJECT[Math.floor(Math.random() * OBJECT.length)])
   );
@@ -87,11 +92,13 @@ function renderNewObjects() {
     // console.log(START_COLUMN, "START_COLUMN", cellId, object);
     cellElement.setAttribute("data-object-id", randomObjectId);
     cellElement.classList.add("object");
+    cellElement.style.backgroundColor = randomColor;
   });
-  return object;
+  return { object, randomColor };
 }
 
 let PLAYING_OBJECT = null;
+let PLAYING_OBJECT_COLOR = null;
 let PLAYING_OBJECT_Id = null;
 
 const MOVEMENT = {
@@ -103,7 +110,9 @@ const MOVEMENT = {
       const newRow = newPlayingObject[newPlayingObject.length - 1][0] + 1;
       if (
         newRow >= TOTAL_AREA.rows ||
-        $("#cell-" + newRow + "-" + cell[1]).hasClass("object")
+        document
+          .getElementById("cell-" + newRow + "-" + cell[1])
+          .classList.contains("object")
       ) {
         canMove = false;
       }
@@ -112,53 +121,93 @@ const MOVEMENT = {
     // If the object can move down, update its position
     if (canMove) {
       // Clear the current position of the newPlayingObject
-      newPlayingObject.forEach((cell) => {
+      for (const cell of newPlayingObject) {
         const cellId = "cell-" + cell[0] + "-" + cell[1];
-        !PLAYING_OBJECT_Id &&
-          (PLAYING_OBJECT_Id = document
-            .getElementById(cellId)
-            .getAttribute("data-object-id"));
-        // document.getElementById(cellId).removeAttribute("data-object-id");
-        document.getElementById(cellId).classList.remove("object");
-      });
+        const cellElement = document.getElementById(cellId);
+        cellElement.removeAttribute("data-object-id");
+        cellElement.classList.remove("object");
+        cellElement.classList.remove(PLAYING_OBJECT_COLOR);
+      }
 
       // Update the position of the newPlayingObject by incrementing the row index
-      newPlayingObject.forEach((cell) => {
+      for (const cell of newPlayingObject) {
         ++cell[0];
         const newCellId = "cell-" + cell[0] + "-" + cell[1];
-        document
-          .getElementById(newCellId)
-          .setAttribute("data-object-id", PLAYING_OBJECT_Id);
-        document.getElementById(newCellId).classList.add("object");
-      });
+        const cellElement = document.getElementById(newCellId);
+        cellElement.setAttribute("data-object-id", PLAYING_OBJECT_Id);
+        cellElement.classList.add("object");
+        cellElement.classList.add(PLAYING_OBJECT_COLOR);
+      }
       return { object: newPlayingObject };
     } else {
       return { recreate: true };
     }
   },
   updatePlayingObject: (newPlayingObject) => {
-    PLAYING_OBJECT.forEach((cell) => {
-      const cellId = "cell-" + cell[0] + "-" + cell[1];
-      document.getElementById(cellId).classList.remove("object");
-    });
+    const newPlayingObjectIds = new Set();
+    const cellUpdates = {};
 
-    newPlayingObject.forEach((cell) => {
+    // Prepare updates for cell elements
+    for (const cell of newPlayingObject) {
       const cellId = "cell-" + cell[0] + "-" + cell[1];
-      document.getElementById(cellId).classList.add("object");
-    });
+      newPlayingObjectIds.add(cellId);
 
+      cellUpdates[cellId] = {
+        addClasses: ["object", PLAYING_OBJECT_COLOR],
+      };
+    }
+
+    // Remove object and color classes from cells not in the new object
+    for (const cell of PLAYING_OBJECT) {
+      const cellId = "cell-" + cell[0] + "-" + cell[1];
+      if (!newPlayingObjectIds.has(cellId)) {
+        cellUpdates[cellId] = {
+          removeClasses: ["object", PLAYING_OBJECT_COLOR],
+        };
+      }
+    }
+
+    // Apply batch updates to the DOM
+    for (const cellId in cellUpdates) {
+      const cellElement = document.getElementById(cellId);
+      const { addClasses, removeClasses } = cellUpdates[cellId];
+
+      if (addClasses) {
+        for (const cls of addClasses) {
+          cellElement.classList.add(cls);
+        }
+      }
+
+      if (removeClasses) {
+        for (const cls of removeClasses) {
+          cellElement.classList.remove(cls);
+        }
+      }
+    }
+
+    // Update the PLAYING_OBJECT reference
     PLAYING_OBJECT = newPlayingObject;
   },
   isValidPosition: (newPlayingObject) => {
     return newPlayingObject.every((cell) => {
-      console.log(
-        document
-          .getElementById("cell-" + cell[0] + "-" + cell[1])
-          .getAttribute("data-object-id"),
-        "asdasd"
+      const cellElement = document.getElementById(
+        "cell-" + cell[0] + "-" + cell[1]
       );
+      const isObjectCell = cellElement.classList.contains("object");
+      const objectId = cellElement.getAttribute("data-object-id");
+
+      // console.log(isObjectCell);
+      // console.log(objectId);
+      // console.log(PLAYING_OBJECT_Id);
+
+      if (isObjectCell) {
+        if (objectId == PLAYING_OBJECT_Id) return true;
+        else {
+          return false;
+        }
+      }
+
       return (
-        // !$("#cell-" + cell[0] + "-" + cell[1]).getAttribute("data-object-id") &&
         cell[0] >= 0 &&
         cell[0] < TOTAL_AREA.rows &&
         cell[1] >= 0 &&
@@ -190,15 +239,19 @@ const MOVEMENT = {
 function main() {
   //   createGrids(stagingRows, columns, true);
   createGrids();
-  $(page).ready(function () {
+  document.addEventListener("DOMContentLoaded", function () {
     setInterval(function () {
       if (!PAUSED) {
         if (PLAYING_OBJECT === null) {
-          PLAYING_OBJECT = renderNewObjects();
+          let { object, randomColor } = renderNewObjects();
+          PLAYING_OBJECT = object;
+          PLAYING_OBJECT_COLOR = randomColor;
         } else {
           let { object, recreate } = MOVEMENT.dropPlayingObject();
           if (recreate) {
-            PLAYING_OBJECT = renderNewObjects();
+            let { object, randomColor } = renderNewObjects();
+            PLAYING_OBJECT = object;
+            PLAYING_OBJECT_COLOR = randomColor;
           } else {
             PLAYING_OBJECT = object;
           }

@@ -62,8 +62,17 @@ const OBJECTS = [
 ];
 const START_COLUMN = Math.floor(COLUMNS / 2);
 
-let PLAYING_OBJECT = { object: null, id: null, color: null };
-
+let PLAYING_OBJECT = {
+  object: null,
+  id: null,
+  color: null,
+};
+function createNewCell(cellId) {
+  const cell = document.createElement("div");
+  cell.classList.add("cell");
+  cellId && cell.setAttribute("id", cellId);
+  return cell;
+}
 function createGrids(y, x) {
   page.innerHTML = "";
   const grid = document.createElement("div");
@@ -74,10 +83,8 @@ function createGrids(y, x) {
     row.classList.add("row");
 
     for (let j = 0; j < x; j++) {
-      const cell = document.createElement("div");
-      cell.classList.add("cell");
       const cellId = "cell-" + i + "-" + j;
-      cell.setAttribute("id", cellId);
+      const cell = createNewCell(cellId);
       row.appendChild(cell);
     }
 
@@ -105,6 +112,7 @@ const OBJECT_FUNCTIONS = {
       const cellId = cell[0] + "-" + cell[1];
       const cellElement = getElementByCellId(cellId);
       OCCUPIED_CELL.add(cellId);
+      cellElement.setAttribute("data-object-id", id);
       cellElement.style.backgroundColor = color;
     }
     return { object, color, id };
@@ -112,20 +120,96 @@ const OBJECT_FUNCTIONS = {
 };
 
 const OBJECT_MOVEMENT_FUNCTIONS = {
-  dropPlayingObject: () => {},
+  dropPlayingObject: () => {
+    let canMove = true;
+
+    const recreate = OBJECT_MOVEMENT_FUNCTIONS.moveDown();
+    return recreate;
+    console.log(recreate, "recreate");
+  },
+  isValidPosition: (newPlayingObject) => {
+    return newPlayingObject.every((cell) => {
+      const newCellId = cell[0] + "-" + cell[1];
+
+      const isNewCellOccupied = OCCUPIED_CELL.has(newCellId);
+
+      if (isNewCellOccupied) {
+        const newCellObjectId =
+          getElementByCellId(newCellId).getAttribute("data-object-id");
+        if (newCellObjectId == PLAYING_OBJECT.id) return true;
+        else {
+          return false;
+        }
+      }
+
+      return (
+        cell[0] >= 0 && cell[0] < ROWS && cell[1] >= 0 && cell[1] < COLUMNS
+      );
+      //   return true;
+    });
+  },
+  updatePlayingObject: (newPlayingObject) => {
+    // Prepare updates for cell elements
+    for (const cell of PLAYING_OBJECT.object.cells) {
+      const cellId = cell[0] + "-" + cell[1];
+      let cellElement = getElementByCellId(cellId);
+      cellElement.replaceWith(createNewCell("cell-" + cellId));
+      OCCUPIED_CELL.delete(cellId);
+    }
+    for (const cell of newPlayingObject) {
+      const cellId = cell[0] + "-" + cell[1];
+      let cellElement = getElementByCellId(cellId);
+      cellElement.setAttribute("data-object-id", PLAYING_OBJECT.id);
+      cellElement.style.backgroundColor = PLAYING_OBJECT.color;
+      OCCUPIED_CELL.add(cellId);
+    }
+
+    PLAYING_OBJECT["object"]["cells"] = newPlayingObject;
+  },
+  moveDown: () => {
+    const newPlayingObject = JSON.parse(
+      JSON.stringify(
+        PLAYING_OBJECT.object.cells.map((cell) => [cell[0] + 1, cell[1]])
+      )
+    );
+    if (OBJECT_MOVEMENT_FUNCTIONS.isValidPosition(newPlayingObject)) {
+      OBJECT_MOVEMENT_FUNCTIONS.updatePlayingObject(newPlayingObject);
+      return false;
+    } else {
+      return true;
+    }
+  },
+  moveLeft: () => {
+    const newPlayingObject = PLAYING_OBJECT.object.cells.map((cell) => [
+      cell[0],
+      cell[1] - 1,
+    ]);
+    if (OBJECT_MOVEMENT_FUNCTIONS.isValidPosition(newPlayingObject)) {
+      OBJECT_MOVEMENT_FUNCTIONS.updatePlayingObject(newPlayingObject);
+    }
+  },
+
+  moveRight: () => {
+    const newPlayingObject = PLAYING_OBJECT.object.cells.map((cell) => [
+      cell[0],
+      cell[1] + 1,
+    ]);
+    if (OBJECT_MOVEMENT_FUNCTIONS.isValidPosition(newPlayingObject)) {
+      OBJECT_MOVEMENT_FUNCTIONS.updatePlayingObject(newPlayingObject);
+    }
+  },
 };
 
-function logic() {
+function game_logic() {
   if (PLAYING_OBJECT.object === null) {
     PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
   } else {
-    // let { object, recreate } = MOVEMENT.dropPlayingObject();
-    // if (recreate) {
-    //   PLAYING_OBJECT = renderNewObjects();
-    // } else {
-    //   PLAYING_OBJECT = object;
-    // }
-    console.log(PLAYING_OBJECT);
+    const recreate = OBJECT_MOVEMENT_FUNCTIONS.dropPlayingObject();
+    if (recreate) {
+      PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
+      // } else {
+      //   PLAYING_OBJECT = object;
+    }
   }
 }
 
@@ -135,7 +219,7 @@ const GAME_FUNCTIONS = {
       IS_STARTED = true;
       GAME_ID = setInterval(function () {
         // if (!IS_PAUSED) {
-        logic();
+        game_logic();
         SCORE++;
         $("#timer").text(`Timer : ${SCORE}`);
         // }
@@ -158,7 +242,11 @@ const GAME_FUNCTIONS = {
     SCORE = 0;
     IS_PAUSED = false;
     IS_STARTED = false;
-    PLAYING_OBJECT = { object: null, id: null, color: null };
+    PLAYING_OBJECT = {
+      object: null,
+      id: null,
+      color: null,
+    };
     createGrids(ROWS, COLUMNS);
     GAME_FUNCTIONS.startGame();
   },
@@ -182,6 +270,12 @@ function main() {
           } else {
             GAME_FUNCTIONS.pauseGame();
           }
+          break;
+        case "ArrowLeft":
+          OBJECT_MOVEMENT_FUNCTIONS.moveLeft();
+          break;
+        case "ArrowRight":
+          OBJECT_MOVEMENT_FUNCTIONS.moveRight();
           break;
       }
     });

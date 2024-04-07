@@ -78,7 +78,7 @@ function createGrids(y, x) {
   page.innerHTML = "";
   const grid = document.createElement("div");
   grid.classList.add(`grid`);
-
+  grid.setAttribute("id", "grid");
   for (let i = 0; i < y; i++) {
     const row_array = [];
     const row = document.createElement("div");
@@ -237,20 +237,20 @@ function game_logic() {
 
 const GAME_FUNCTIONS = {
   shiftRows: (rows) => {
-    const newArra = [];
-    const empty_array = [];
-    for (let oldRow in GRID_ARRAY) {
-      oldRow = Number(oldRow);
-      if (!rows.includes(oldRow)) {
-        newArra.push(GRID_ARRAY[oldRow]);
-      } else {
-        empty_array.push(new Array(COLUMNS).fill(0));
-      }
-    }
-    GRID_ARRAY = newArra;
-    console.log(GRID_ARRAY);
-    console.log(newArra);
-    console.log(rows, "rows");
+    // console.log(rows);
+    // const newArra = [];
+    // const GRID = document.getElementById("grid");
+    // for (let i = 0; i < GRID_ARRAY.length; i++) {
+    //   if (!rows.includes(i)) {
+    //     newArra.push(GRID_ARRAY[i]);
+    //   } else {
+    //     console.log(i);
+    //     GRID.children[i].remove();
+    //     newArra.unshift(new Array(COLUMNS).fill(0));
+    //   }
+    // }
+    // GRID_ARRAY = newArra;
+    // console.log(GRID_ARRAY, "GRID_ARRAY");
   },
   clearRow: (rows) => {
     for (const y of rows) {
@@ -280,8 +280,8 @@ const GAME_FUNCTIONS = {
       }
     }
     if (to_clear.length) {
-      GAME_FUNCTIONS.clearRow(to_clear);
-      GAME_FUNCTIONS.shiftRows(to_clear);
+      //   GAME_FUNCTIONS.clearRow(to_clear);
+      //   GAME_FUNCTIONS.shiftRows(to_clear);
     }
   },
   startGame: () => {

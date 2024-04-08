@@ -6,8 +6,8 @@ let IS_STARTED = false;
 let IS_PAUSED = false;
 
 let SCORE = 0;
-const ROWS = 10;
-const COLUMNS = 10;
+const ROWS = 6;
+const COLUMNS = 6;
 const DIFFICULTIES = {
   easy: 1000,
   medium: 500,
@@ -17,26 +17,36 @@ const DIFFICULTIES = {
 
 const OBJECT_COLORS = ["red", "green", "blue", "brown"];
 const OBJECTS = [
-  //   {
-  //     name: "I",
-  //     cells: [
-  //       [0, 0],
-  //       [1, 0],
-  //       [2, 0],
-  //       [3, 0],
-  //     ],
-  //     rotation: true,
-  //   },
-  //   {
-  //     name: "L",
-  //     cells: [
-  //       [0, 0],
-  //       [1, 0],
-  //       [2, 0],
-  //       [2, 1],
-  //     ],
-  //     rotation: true,
-  //   },
+  {
+    name: "I",
+    cells: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+    ],
+    rotation: true,
+  },
+  {
+    name: "T",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [1, 1],
+    ],
+    rotation: true,
+  },
+  // {
+  //   name: "L",
+  //   cells: [
+  //     [0, 0],
+  //     [1, 0],
+  //     [2, 0],
+  //     [2, 1],
+  //   ],
+  //   rotation: true,
+  // },
   //   {
   //     name: "Z",
   //     cells: [
@@ -94,8 +104,34 @@ function createGrids(y, x) {
     grid.appendChild(row);
   }
   page.appendChild(grid);
-  console.log(GRID_ARRAY, "GRID_ARRAY");
 }
+
+function createGridsV2(GRID) {
+  console.log("Called V2");
+  // GRID_ARRAY.length = 0;
+  page.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.classList.add(`grid`);
+  grid.setAttribute("id", "grid");
+  for (let i = 0; i < GRID.length; i++) {
+    const row_array = [];
+    const row = document.createElement("div");
+    row.classList.add("row");
+
+    for (let j = 0; j < GRID[i].length; j++) {
+      const cellId = "cell-" + i + "-" + j;
+      const cell = createNewCell(cellId);
+      cell.setAttribute("data-object-id", GRID[i][j].id);
+      cell.style.backgroundColor = GRID[i][j].color;
+      row.appendChild(cell);
+    }
+    // GRID_ARRAY.push(row_array);
+    grid.appendChild(row);
+  }
+  page.appendChild(grid);
+  // console.log(GRID_ARRAY, "GRID_ARRAY");
+}
+
 function getElementByCellId(id) {
   return document.getElementById(`cell-${id}`);
 }
@@ -114,7 +150,7 @@ const OBJECT_FUNCTIONS = {
     for (const cell of object.cells) {
       cell[1] = cell[1] + START_COLUMN;
       const cellId = cell[0] + "-" + cell[1];
-      GRID_ARRAY[cell[0]][cell[1]] = 1;
+      GRID_ARRAY[cell[0]][cell[1]] = { object, color, id };
       const cellElement = getElementByCellId(cellId);
       //   OCCUPIED_CELL.add(cellId); // TODO;remoce
       cellElement.setAttribute("data-object-id", id);
@@ -181,7 +217,12 @@ const OBJECT_MOVEMENT_FUNCTIONS = {
     for (const cell of newPlayingObject) {
       const cellId = cell[0] + "-" + cell[1];
       let cellElement = getElementByCellId(cellId);
-      GRID_ARRAY[cell[0]][cell[1]] = 1;
+      // console.log(GRID_ARRAY[cell[0]][cell[1]]);
+      GRID_ARRAY[cell[0]][cell[1]] = {
+        object: { ...PLAYING_OBJECT.object, cells: [cell[0], cell[1]] },
+        color: PLAYING_OBJECT.color,
+        id: PLAYING_OBJECT.id,
+      };
       cellElement.setAttribute("data-object-id", PLAYING_OBJECT.id);
       cellElement.style.backgroundColor = PLAYING_OBJECT.color;
     }
@@ -227,30 +268,27 @@ function game_logic() {
   } else {
     const recreate = OBJECT_MOVEMENT_FUNCTIONS.dropPlayingObject();
     if (recreate) {
+      GAME_FUNCTIONS.checkIfRowsAreFilled();
       PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
       // } else {
       //   PLAYING_OBJECT = object;
-      GAME_FUNCTIONS.checkIfRowsAreFilled();
     }
   }
 }
 
 const GAME_FUNCTIONS = {
   shiftRows: (rows) => {
-    // console.log(rows);
-    // const newArra = [];
-    // const GRID = document.getElementById("grid");
-    // for (let i = 0; i < GRID_ARRAY.length; i++) {
-    //   if (!rows.includes(i)) {
-    //     newArra.push(GRID_ARRAY[i]);
-    //   } else {
-    //     console.log(i);
-    //     GRID.children[i].remove();
-    //     newArra.unshift(new Array(COLUMNS).fill(0));
-    //   }
-    // }
-    // GRID_ARRAY = newArra;
-    // console.log(GRID_ARRAY, "GRID_ARRAY");
+    const newArra = [];
+    for (let i = 0; i < GRID_ARRAY.length; i++) {
+      if (!rows.includes(i)) {
+        newArra.push(GRID_ARRAY[i]);
+      } else {
+        newArra.unshift(new Array(COLUMNS).fill(0));
+      }
+    }
+    GRID_ARRAY = newArra;
+    console.log(GRID_ARRAY, "GRID_ARRAY");
+    createGridsV2(GRID_ARRAY);
   },
   clearRow: (rows) => {
     for (const y of rows) {
@@ -266,7 +304,7 @@ const GAME_FUNCTIONS = {
     const to_clear = [];
     for (let rowIndex = ROWS - 1; rowIndex > 0; --rowIndex) {
       let is_full = GRID_ARRAY[rowIndex].every((cell) => {
-        if (cell === 1) return true;
+        if (typeof cell === "object") return true;
         else return false;
       });
 
@@ -279,9 +317,10 @@ const GAME_FUNCTIONS = {
         console.log(is_full);
       }
     }
+    console.log(to_clear, "to_clear");
     if (to_clear.length) {
-      //   GAME_FUNCTIONS.clearRow(to_clear);
-      //   GAME_FUNCTIONS.shiftRows(to_clear);
+      GAME_FUNCTIONS.clearRow(to_clear);
+      GAME_FUNCTIONS.shiftRows(to_clear);
     }
   },
   startGame: () => {
@@ -352,6 +391,9 @@ function main() {
           break;
         case "ArrowUp":
           OBJECT_MOVEMENT_FUNCTIONS.rotate();
+          break;
+        case "KeyC":
+          createGridsV2(GRID_ARRAY);
           break;
       }
     });

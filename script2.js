@@ -6,8 +6,8 @@ let IS_STARTED = false;
 let IS_PAUSED = false;
 
 let SCORE = 0;
-const ROWS = 6;
-const COLUMNS = 6;
+const ROWS = 20;
+const COLUMNS = 12;
 const DIFFICULTIES = {
   easy: 1000,
   medium: 500,
@@ -37,26 +37,26 @@ const OBJECTS = [
     ],
     rotation: true,
   },
-  // {
-  //   name: "L",
-  //   cells: [
-  //     [0, 0],
-  //     [1, 0],
-  //     [2, 0],
-  //     [2, 1],
-  //   ],
-  //   rotation: true,
-  // },
-  //   {
-  //     name: "Z",
-  //     cells: [
-  //       [0, 0],
-  //       [0, 1],
-  //       [1, 1],
-  //       [1, 2],
-  //     ],
-  //     rotation: true,
-  //   },
+  {
+    name: "L",
+    cells: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [2, 1],
+    ],
+    rotation: true,
+  },
+  {
+    name: "Z",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [1, 1],
+      [1, 2],
+    ],
+    rotation: true,
+  },
   {
     name: "O",
     cells: [
@@ -107,8 +107,6 @@ function createGrids(y, x) {
 }
 
 function createGridsV2(GRID) {
-  console.log("Called V2");
-  // GRID_ARRAY.length = 0;
   page.innerHTML = "";
   const grid = document.createElement("div");
   grid.classList.add(`grid`);
@@ -125,11 +123,9 @@ function createGridsV2(GRID) {
       cell.style.backgroundColor = GRID[i][j].color;
       row.appendChild(cell);
     }
-    // GRID_ARRAY.push(row_array);
     grid.appendChild(row);
   }
   page.appendChild(grid);
-  // console.log(GRID_ARRAY, "GRID_ARRAY");
 }
 
 function getElementByCellId(id) {
@@ -146,13 +142,11 @@ const OBJECT_FUNCTIONS = {
         OBJECTS[Math.floor(Math.random() * Object.keys(OBJECTS).length)]
       )
     );
-    //   PLAYING_OBJECT_Id = randomObjectId;
     for (const cell of object.cells) {
       cell[1] = cell[1] + START_COLUMN;
       const cellId = cell[0] + "-" + cell[1];
       GRID_ARRAY[cell[0]][cell[1]] = { object, color, id };
       const cellElement = getElementByCellId(cellId);
-      //   OCCUPIED_CELL.add(cellId); // TODO;remoce
       cellElement.setAttribute("data-object-id", id);
       cellElement.style.backgroundColor = color;
     }
@@ -182,7 +176,7 @@ const OBJECT_MOVEMENT_FUNCTIONS = {
     const recreate = OBJECT_MOVEMENT_FUNCTIONS.moveDown();
     return recreate;
   },
-  isValidPosition: (newPlayingObject) => {
+  isValidPosition: (newPlayingObject, freshBlock = false) => {
     return newPlayingObject.every((cell) => {
       if (
         !(cell[0] >= 0 && cell[0] < ROWS && cell[1] >= 0 && cell[1] < COLUMNS)
@@ -195,19 +189,23 @@ const OBJECT_MOVEMENT_FUNCTIONS = {
       if (isNewCellOccupied) {
         const newCellObjectId =
           getElementByCellId(newCellId).getAttribute("data-object-id");
-        if (Number(newCellObjectId) === PLAYING_OBJECT.id) return true;
+        if (
+          freshBlock &&
+          cell[0] === 0 &&
+          newCellObjectId &&
+          Number(newCellObjectId) !== PLAYING_OBJECT.id
+        ) {
+          return true;
+        } else if (Number(newCellObjectId) === PLAYING_OBJECT.id) return true;
         else {
           return false;
         }
+      } else {
+        return true;
       }
-
-      return (
-        cell[0] >= 0 && cell[0] < ROWS && cell[1] >= 0 && cell[1] < COLUMNS
-      );
     });
   },
   updatePlayingObject: (newPlayingObject) => {
-    // Prepare updates for cell elements
     for (const cell of PLAYING_OBJECT.object.cells) {
       const cellId = cell[0] + "-" + cell[1];
       let cellElement = getElementByCellId(cellId);
@@ -217,7 +215,6 @@ const OBJECT_MOVEMENT_FUNCTIONS = {
     for (const cell of newPlayingObject) {
       const cellId = cell[0] + "-" + cell[1];
       let cellElement = getElementByCellId(cellId);
-      // console.log(GRID_ARRAY[cell[0]][cell[1]]);
       GRID_ARRAY[cell[0]][cell[1]] = {
         object: { ...PLAYING_OBJECT.object, cells: [cell[0], cell[1]] },
         color: PLAYING_OBJECT.color,
@@ -262,20 +259,6 @@ const OBJECT_MOVEMENT_FUNCTIONS = {
   },
 };
 
-function game_logic() {
-  if (PLAYING_OBJECT.object === null) {
-    PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
-  } else {
-    const recreate = OBJECT_MOVEMENT_FUNCTIONS.dropPlayingObject();
-    if (recreate) {
-      GAME_FUNCTIONS.checkIfRowsAreFilled();
-      PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
-      // } else {
-      //   PLAYING_OBJECT = object;
-    }
-  }
-}
-
 const GAME_FUNCTIONS = {
   shiftRows: (rows) => {
     const newArra = [];
@@ -287,7 +270,6 @@ const GAME_FUNCTIONS = {
       }
     }
     GRID_ARRAY = newArra;
-    console.log(GRID_ARRAY, "GRID_ARRAY");
     createGridsV2(GRID_ARRAY);
   },
   clearRow: (rows) => {
@@ -310,14 +292,11 @@ const GAME_FUNCTIONS = {
 
       if (is_full) {
         to_clear.push(rowIndex);
-        // rowIndex++;
       }
 
       if (rowIndex === 19) {
-        console.log(is_full);
       }
     }
-    console.log(to_clear, "to_clear");
     if (to_clear.length) {
       GAME_FUNCTIONS.clearRow(to_clear);
       GAME_FUNCTIONS.shiftRows(to_clear);
@@ -359,7 +338,25 @@ const GAME_FUNCTIONS = {
     createGrids(ROWS, COLUMNS);
     GAME_FUNCTIONS.startGame();
   },
+  gameOver: () => {
+    clearInterval(GAME_ID);
+    IS_PAUSED = true;
+    IS_STARTED = false;
+    alert("Game Over");
+  },
 };
+
+function game_logic() {
+  if (PLAYING_OBJECT.object === null) {
+    PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
+  } else {
+    const recreate = OBJECT_MOVEMENT_FUNCTIONS.dropPlayingObject();
+    if (recreate) {
+      GAME_FUNCTIONS.checkIfRowsAreFilled();
+      PLAYING_OBJECT = OBJECT_FUNCTIONS.renderNewObjects();
+    }
+  }
+}
 
 function main() {
   createGrids(ROWS, COLUMNS);
